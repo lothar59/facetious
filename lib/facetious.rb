@@ -120,7 +120,7 @@ module Facetious #:nodoc:
     end
 
     def find_by_facets facet_values_hash
-      self.class.where(where_clause_for_facets facet_values_hash)
+      self.where(where_clause_for_facets facet_values_hash)
     end
 
   private
