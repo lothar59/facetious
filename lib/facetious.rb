@@ -26,6 +26,7 @@ module Facetious #:nodoc:
     def sql_value data_type, value
       conversion_proc = ValueConverter[data_type]
       raise "facet data type #{data_type} is not recognised" unless conversion_proc
+
       conversion_proc.call(value).to_s
     end
 
@@ -33,61 +34,62 @@ module Facetious #:nodoc:
       name = field_name.to_s
       # puts "condition_for facet #{name}, value #{value.inspect}"
       conditions =
-	case value
-	when /\A\s*-\s*\Z/
-	  if where =~ /\s*\(?\s*EXISTS\b/i
-	    nil # No condition will be used, rather the EXISTS will be negated.
-	  else
-	    '('+name+' IS NULL OR '+name+" = '')"
-	  end
-	when /\A\s*\*\s*\Z/
-	  "#{name} != ''"   # Which also means IS NOT NULL, incidentally
-	when /,/
-	  '('+
-	  value.split(/,/).map(&:strip).map do |alternate|
-	    condition_for alternate
-	  end.join(' OR ') +
-	  ')'
-	when /\A(>=?)(.*)/  # Greater than
-	  name + " #{$1} " + sql_value(data_type, $2)
-	when /\A(<=?)(.*)/  # Less than
-	  name + " #{$1} " + sql_value(data_type, $2)
-	when /\A~(.*)/    # Near this value
-	  # name + ...
-	when /\A(.*)\.\.(.*)\z/ # Between
-	  name + " >= " + sql_value(data_type, $1) + " AND " +
-	  name + " <= " + sql_value(data_type, $2)
-	when /%/
-	  name + " LIKE " + sql_value(data_type, value)
-	when Array
-	  '(' + value.map{|v| condition_for v }*' OR ' + ')'
-	when Range
-	  name + " >= " + sql_value(data_type, value.begin.to_s) + " AND " +
-	  name + " <= " + sql_value(data_type, value.end.to_s)
-	else      # Equals
-	  if [:integers, :strings].include?(data_type)
-	    name + " IN " + sql_value(data_type, value.to_s)
-	  else
-	    name + " = " + sql_value(data_type, value.to_s)
-	  end
-	end
+
+        case value
+        when /\A\s*-\s*\Z/
+          if where =~ /\s*\(?\s*EXISTS\b/i
+            nil # No condition will be used, rather the EXISTS will be negated.
+          else
+            '('+name+' IS NULL OR '+name+" = '')"
+          end
+        when /\A\s*\*\s*\Z/
+          "#{name} != ''"   # Which also means IS NOT NULL, incidentally
+        when /,/
+          '('+
+          value.split(/,/).map(&:strip).map do |alternate|
+            condition_for alternate
+          end.join(' OR ') +
+          ')'
+        when /\A(>=?)(.*)/  # Greater than
+          "'#{name}' #{$1} " + sql_value(data_type, $2)
+        when /\A(<=?)(.*)/  # Less than
+          "'#{name}' #{$1} " + sql_value(data_type, $2)
+        when /\A~(.*)/    # Near this value
+          # name + ...
+        when /\A(.*)\.\.(.*)\z/ # Between
+          name + " >= " + sql_value(data_type, $1) + " AND " +
+          name + " <= " + sql_value(data_type, $2)
+        when /%/
+          name + " LIKE " + sql_value(data_type, value)
+        when Array
+          '(' + value.map{|v| condition_for v }*' OR ' + ')'
+        when Range
+          name + " >= " + sql_value(data_type, value.begin.to_s) + " AND " +
+          name + " <= " + sql_value(data_type, value.end.to_s)
+        else      # Equals
+          if [:integers, :strings].include?(data_type)
+            name + " IN " + sql_value(data_type, value.to_s)
+          else
+            name + " = " + sql_value(data_type, value.to_s)
+          end
+        end
 
       if sql = where
-	if sql.include?('?')
-	  if conditions
-	    sql.gsub(/\?/, "  AND "+conditions)
-	  else  # Make an EXISTS clause into NOT EXISTS (see above)
-	    'NOT '+sql.gsub(/\?/, '')
-	  end
-	else
-	  if sql.match /{{.*}}/
-	    name + sql.gsub(/{{.*}}/, sql_value(data_type, value))
-	  else
-	    sql + "WHERE\t"+conditions
-	  end
-	end
+        if sql.include?('?')
+          if conditions
+            sql.gsub(/\?/, "  AND "+conditions)
+          else  # Make an EXISTS clause into NOT EXISTS (see above)
+            'NOT '+sql.gsub(/\?/, '')
+          end
+        else
+          if sql.match /{{.*}}/
+            "'#{name}' #{sql.gsub(/{{.*}}/, sql_value(data_type, value))}"
+          else
+            sql + "WHERE\t"+conditions
+          end
+        end
       else
-	conditions
+        conditions
       end
     end
   end
@@ -99,7 +101,7 @@ module Facetious #:nodoc:
 
       facet_name = args.first.is_a?(Hash) ? args[-1][:name] : args.shift
       unless facet_name
-	raise "Usage: facet :field_name, :title => 'Field Name', :data_type => :string (etc), :where => 'SQL'"
+        raise "Usage: facet :field_name, :title => 'Field Name', :data_type => :string (etc), :where => 'SQL'"
       end
 
       field_name = (args.first.is_a?(Hash) ? args[-1][:field_name] : args.shift) || facet_name
@@ -114,8 +116,8 @@ module Facetious #:nodoc:
   module FacetedClassMethods
     def where_clause_for_facets facet_values_hash
       facet_values_hash.map do |facet_name, value|
-	facet = facets[facet_name.to_sym] or raise "#{self.name} has no search facet #{facet_name}"
-	facet.condition_for value
+        facet = facets[facet_name.to_sym] or raise "#{self.name} has no search facet #{facet_name}"
+        facet.condition_for value
       end*" AND "
     end
 
