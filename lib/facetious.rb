@@ -43,7 +43,7 @@ module Facetious #:nodoc:
             '('+name+' IS NULL OR '+name+" = '')"
           end
         when /\A\s*\*\s*\Z/
-          "#{name} != ''"   # Which also means IS NOT NULL, incidentally
+          name != ''   # Which also means IS NOT NULL, incidentally
         when /,/
           '('+
           value.split(/,/).map(&:strip).map do |alternate|
@@ -51,9 +51,9 @@ module Facetious #:nodoc:
           end.join(' OR ') +
           ')'
         when /\A(>=?)(.*)/  # Greater than
-          "'#{name}' #{$1} " + sql_value(data_type, $2)
+          name + "#{$1}" + sql_value(data_type, $2)
         when /\A(<=?)(.*)/  # Less than
-          "'#{name}' #{$1} " + sql_value(data_type, $2)
+          name + "#{$1}" + sql_value(data_type, $2)
         when /\A~(.*)/    # Near this value
           # name + ...
         when /\A(.*)\.\.(.*)\z/ # Between
@@ -83,7 +83,7 @@ module Facetious #:nodoc:
           end
         else
           if sql.match /{{.*}}/
-            "'#{name}' #{sql.gsub(/{{.*}}/, sql_value(data_type, value))}"
+            name + "#{sql.gsub(/{{.*}}/, sql_value(data_type, value))}"
           else
             sql + "WHERE\t"+conditions
           end
